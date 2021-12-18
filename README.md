@@ -4,6 +4,13 @@
 A sketch is a data structure which stores a summary of a data set using much less memory than the full data set.
 This summary is only an approximation, but sometimes they can be surprisingly effective.
 
+## Features
+
+* **Tug of War**: Implementation of ["The Space Complexity of Approximating the Frequency Moments"](https://www.sciencedirect.com/science/article/pii/S0022000097915452) used for frequency moments (F^2), multiplicity queries, self-join size, and set difference.
+* **MiniSketch**: Zig wrapper around [MiniSketch](https://github.com/sipa/minisketch) used for compact set reconciliation.
+* **PBS**: Implementation of ["Space- and Computationally-Efficient Set Reconciliation via Parity Bitmap Sketch"](https://arxiv.org/pdf/2007.14569.pdf) used for compact set reconciliation.
+  Scales better than MiniSketch for large number of differences (according to the paper).
+
 ## Examples
 
 ### Tug of War: Set difference
