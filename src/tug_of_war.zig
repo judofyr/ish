@@ -50,11 +50,10 @@ pub fn TugOfWar(
             var j: usize = 0;
 
             var h: u64 = undefined;
-            var ctx: Context = .{};
 
             while (i < self.counters.len) : (i += 1) {
                 if (i % 64 == 0) {
-                    h = ctx.hash(val, j);
+                    h = self.ctx.hash(val, j);
                     j += 1;
                 }
 
