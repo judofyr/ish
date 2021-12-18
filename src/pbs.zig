@@ -42,6 +42,7 @@ pub const Settings = struct {
 pub const SmallPBS = struct {
     const Self = @This();
 
+    settings: Settings,
     xor: []u64,
     parity: std.DynamicBitSetUnmanaged,
 
@@ -50,7 +51,7 @@ pub const SmallPBS = struct {
         const xor = try allocator.alloc(u64, n);
         std.mem.set(u64, xor, 0);
         const parity = try std.DynamicBitSetUnmanaged.initEmpty(allocator, n);
-        return Self{ .xor = xor, .parity = parity };
+        return Self{ .settings = settings, .xor = xor, .parity = parity };
     }
 
     pub fn deinit(self: *Self, allocator: std.mem.Allocator) void {
@@ -59,14 +60,14 @@ pub const SmallPBS = struct {
         self.* = undefined;
     }
 
-    pub fn addOne(self: *Self, val: u64, settings: Settings) void {
-        const idx = hash.hashValue(val, settings.small_seed) % self.xor.len;
+    pub fn addOne(self: *Self, val: u64) void {
+        const idx = hash.hashValue(val, self.settings.small_seed) % self.xor.len;
         self.xor[idx] ^= val;
         self.parity.toggle(idx);
     }
 
-    pub fn buildCodeword(self: *const Self, settings: Settings) MiniSketch {
-        var m = MiniSketch.init(settings.logn, settings.t);
+    pub fn buildCodeword(self: *const Self) MiniSketch {
+        var m = MiniSketch.init(self.settings.logn, self.settings.t);
 
         var i: usize = 0;
 
@@ -83,9 +84,9 @@ pub const SmallPBS = struct {
         return self.xor[idx - 1];
     }
 
-    pub fn recoverXor(self: *const Self, settings: Settings, idx: usize, xor: u64) ?u64 {
+    pub fn recoverXor(self: *const Self, idx: usize, xor: u64) ?u64 {
         const val = self.xor[idx - 1] ^ xor;
-        const exp_idx = hash.hashValue(val, settings.small_seed) % self.xor.len;
+        const exp_idx = hash.hashValue(val, self.settings.small_seed) % self.xor.len;
         if (exp_idx == idx - 1) {
             return val;
         }
@@ -96,6 +97,7 @@ pub const SmallPBS = struct {
 pub const PBS = struct {
     const Self = @This();
 
+    settings: Settings,
     n: usize,
     xor: []u64,
     parity: std.DynamicBitSetUnmanaged,
@@ -109,7 +111,7 @@ pub const PBS = struct {
         // We add 1 here so that all the masks start at a sensible boundary.
         const parity = try std.DynamicBitSetUnmanaged.initEmpty(allocator, (n + 1) * settings.partitionCount());
 
-        return Self{ .xor = xor, .parity = parity, .n = n };
+        return Self{ .settings = settings, .xor = xor, .parity = parity, .n = n };
     }
 
     pub fn deinit(self: *Self, allocator: std.mem.Allocator) void {
@@ -126,6 +128,7 @@ pub const PBS = struct {
             .masks = self.parity.masks + masks_start,
         };
         return SmallPBS{
+            .settings = self.settings,
             .xor = self.xor[xor_start..(xor_start + self.n)],
             .parity = parity,
         };
@@ -135,18 +138,18 @@ pub const PBS = struct {
         return self.xor.len / self.n;
     }
 
-    pub fn addOne(self: *Self, val: u64, settings: Settings) void {
-        const idx = hash.hashValue(val, settings.big_seed) % self.partitionCount();
-        self.partition(idx).addOne(val, settings);
+    pub fn addOne(self: *Self, val: u64) void {
+        const idx = hash.hashValue(val, self.settings.big_seed) % self.partitionCount();
+        self.partition(idx).addOne(val);
     }
 
-    pub fn buildCodewords(self: *const Self, settings: Settings, allocator: std.mem.Allocator) ![]MiniSketch {
+    pub fn buildCodewords(self: *const Self, allocator: std.mem.Allocator) ![]MiniSketch {
         const count = self.partitionCount();
         var codewords = try allocator.alloc(MiniSketch, count);
 
         var idx: usize = 0;
         while (idx < count) : (idx += 1) {
-            codewords[idx] = self.partition(idx).buildCodeword(settings);
+            codewords[idx] = self.partition(idx).buildCodeword();
         }
         return codewords;
     }
@@ -165,20 +168,20 @@ pub const PBS = struct {
         }
     }
 
-    pub fn deserializeCodewords(settings: Settings, allocator: std.mem.Allocator, target: *std.ArrayListUnmanaged(u8)) ![]MiniSketch {
-        var codewords = try allocator.alloc(MiniSketch, settings.partitionCount());
+    pub fn deserializeCodewords(self: *const Self, allocator: std.mem.Allocator, target: *std.ArrayListUnmanaged(u8)) ![]MiniSketch {
+        var codewords = try allocator.alloc(MiniSketch, self.settings.partitionCount());
         var idx: usize = 0;
         for (codewords) |*cw| {
-            cw.* = MiniSketch.init(settings.logn, settings.t);
+            cw.* = MiniSketch.init(self.settings.logn, self.settings.t);
             try cw.deserialize(target.items[idx..]);
-            idx += settings.smallCodewordSize();
+            idx += self.settings.smallCodewordSize();
         }
         return codewords;
     }
 
     /// Serializes the difference based on the codewords. Note that this will modify `codewords`.
-    pub fn serializeDiff(self: *const Self, settings: Settings, allocator: std.mem.Allocator, codewords: []MiniSketch, other: []const MiniSketch, writer: anytype) !usize {
-        var buf = try std.ArrayListUnmanaged(u64).initCapacity(allocator, settings.t);
+    pub fn serializeDiff(self: *const Self, allocator: std.mem.Allocator, codewords: []MiniSketch, other: []const MiniSketch, writer: anytype) !usize {
+        var buf = try std.ArrayListUnmanaged(u64).initCapacity(allocator, self.settings.t);
         defer buf.deinit(allocator);
 
         var count: usize = 0;
@@ -205,14 +208,13 @@ pub const PBS = struct {
     /// Note that this will modify `codewords`.
     pub fn applyDiff(
         self: *Self,
-        settings: Settings,
         allocator: std.mem.Allocator,
         codewords: []MiniSketch,
         other: []const MiniSketch,
         reader: anytype,
         cb: anytype,
     ) !usize {
-        var buf = try std.ArrayListUnmanaged(u64).initCapacity(allocator, settings.t);
+        var buf = try std.ArrayListUnmanaged(u64).initCapacity(allocator, self.settings.t);
         defer buf.deinit(allocator);
 
         var count: usize = 0;
@@ -230,8 +232,8 @@ pub const PBS = struct {
                 count += 1;
 
                 const part = self.partition(idx);
-                const val = part.recoverXor(settings, bucket_idx, xor_hash) orelse continue;
-                const exp_idx = hash.hashValue(val, settings.big_seed) % self.partitionCount();
+                const val = part.recoverXor(bucket_idx, xor_hash) orelse continue;
+                const exp_idx = hash.hashValue(val, self.settings.big_seed) % self.partitionCount();
                 if (exp_idx == idx) {
                     cb.call(val);
                 }
@@ -258,19 +260,19 @@ test "small" {
 
     // Add all numbers from [a, b]
     while (a < b) : (a += 1) {
-        pbs1.addOne(a, s);
-        pbs2.addOne(a, s);
+        pbs1.addOne(a);
+        pbs2.addOne(a);
     }
 
     // Now add `d` more items to pbs2.
     while (a < b + s.d) : (a += 1) {
-        pbs2.addOne(a, s);
+        pbs2.addOne(a);
     }
 
-    var cw1 = pbs1.buildCodeword(s);
+    var cw1 = pbs1.buildCodeword();
     defer cw1.deinit();
 
-    var cw2 = pbs2.buildCodeword(s);
+    var cw2 = pbs2.buildCodeword();
     defer cw2.deinit();
 
     var diff = try std.ArrayListUnmanaged(u64).initCapacity(testing.allocator, s.t);
@@ -294,17 +296,17 @@ test "big" {
 
     // Add all numbers from [a, b]
     while (a < b) : (a += 1) {
-        pbs1.addOne(a, s);
-        pbs2.addOne(a, s);
+        pbs1.addOne(a);
+        pbs2.addOne(a);
     }
 
     // Now add `d` more items to pbs2.
     while (a < b + s.d) : (a += 1) {
-        pbs2.addOne(a, s);
+        pbs2.addOne(a);
     }
 
     // At 1: Build our codewords
-    var cw1 = try pbs1.buildCodewords(s, testing.allocator);
+    var cw1 = try pbs1.buildCodewords(testing.allocator);
     defer PBS.freeCodewords(testing.allocator, cw1);
 
     // 1: Build bytes.
@@ -313,11 +315,11 @@ test "big" {
     try PBS.serializeCodewords(cw1, &cw1_bytes);
 
     // 2: Build codewords
-    var cw2 = try pbs2.buildCodewords(s, testing.allocator);
+    var cw2 = try pbs2.buildCodewords(testing.allocator);
     defer PBS.freeCodewords(testing.allocator, cw2);
 
     // 2: Parse 1's codewords.
-    var cw1_copy = try PBS.deserializeCodewords(s, testing.allocator, &cw1_bytes);
+    var cw1_copy = try pbs2.deserializeCodewords(testing.allocator, &cw1_bytes);
     defer PBS.freeCodewords(testing.allocator, cw1_copy);
 
     // 2: Build bytes.
@@ -326,13 +328,13 @@ test "big" {
     try PBS.serializeCodewords(cw2, &cw2_bytes);
 
     // 1: Parse 2's codewords.
-    var cw2_copy = try PBS.deserializeCodewords(s, testing.allocator, &cw2_bytes);
+    var cw2_copy = try pbs1.deserializeCodewords(testing.allocator, &cw2_bytes);
     defer PBS.freeCodewords(testing.allocator, cw2_copy);
 
     // 1: Build diff.
     var diff_bytes = std.ArrayList(u8).init(testing.allocator);
     defer diff_bytes.deinit();
-    const count1 = try pbs1.serializeDiff(s, testing.allocator, cw1, cw2_copy, diff_bytes.writer());
+    const count1 = try pbs1.serializeDiff(testing.allocator, cw1, cw2_copy, diff_bytes.writer());
 
     // 2: Apply the diff.
     const cb = struct {
@@ -344,7 +346,7 @@ test "big" {
     };
 
     const reader = std.io.fixedBufferStream(diff_bytes.items).reader();
-    const count2 = try pbs2.applyDiff(s, testing.allocator, cw2, cw1_copy, reader, cb{});
+    const count2 = try pbs2.applyDiff(testing.allocator, cw2, cw1_copy, reader, cb{});
 
     // Now check that the count is equal on both sides.
     try testing.expectEqual(count1, count2);
