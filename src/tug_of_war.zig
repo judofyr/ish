@@ -8,20 +8,33 @@ pub fn AutoTugOfWar(
     return TugOfWar(CountType, ValueType, hash.AutoContext(ValueType));
 }
 
+/// Implementation of Alon, Matias, and Szegedy's classic "tug-of-war" sketch
+/// as presented in "The space complexity of approximating the frequency moments".
 pub fn TugOfWar(
+    /// The type used per counter. Must be a signed integer.
     comptime CountType: type,
+    /// The type of the values we're counting.
     comptime ValueType: type,
+    /// Type of the context which provides the hashing function.
     comptime Context: type,
 ) type {
     return struct {
         const Self = @This();
 
+        // List of counters.
         counters: []CountType,
 
+        /// Context used for hashing.
+        ctx: Context,
+
         pub fn init(allocator: std.mem.Allocator, count: usize) !Self {
+            return initWithContext(allocator, count, .{});
+        }
+
+        pub fn initWithContext(allocator: std.mem.Allocator, count: usize, ctx: Context) !Self {
             const counters = try allocator.alloc(CountType, count);
             std.mem.set(CountType, counters, 0);
-            return Self{ .counters = counters };
+            return Self{ .counters = counters, .ctx = ctx };
         }
 
         pub fn deinit(self: *Self, allocator: std.mem.Allocator) void {
@@ -29,6 +42,7 @@ pub fn TugOfWar(
             self.* = undefined;
         }
 
+        /// Adds a value to the sketch with a given count.
         pub fn addCount(self: *Self, val: ValueType, count: CountType) void {
             // The counter to update
             var i: usize = 0;
