@@ -81,13 +81,17 @@ pub const SmallPBS = struct {
         return m;
     }
 
-    pub fn addXor(self: *Self, idx: usize, val: u64) void {
-        self.xor[idx - 1] ^= val;
-        self.parity.toggle(idx - 1);
-    }
-
     pub fn xorForIdx(self: *const Self, idx: usize) u64 {
         return self.xor[idx - 1];
+    }
+
+    pub fn recoverXor(self: *const Self, idx: usize, xor: u64) ?u64 {
+        const val = self.xor[idx - 1] ^ xor;
+        const exp_idx = hash.hashValue(val, small_seed) % self.xor.len;
+        if (exp_idx == idx - 1) {
+            return val;
+        }
+        return null;
     }
 };
 
@@ -201,7 +205,15 @@ pub const PBS = struct {
 
     /// Applies a serialized diff.
     /// Note that this will modify `codewords`.
-    pub fn applyDiff(self: *Self, settings: Settings, allocator: std.mem.Allocator, codewords: []MiniSketch, other: []const MiniSketch, reader: anytype) !usize {
+    pub fn applyDiff(
+        self: *Self,
+        settings: Settings,
+        allocator: std.mem.Allocator,
+        codewords: []MiniSketch,
+        other: []const MiniSketch,
+        reader: anytype,
+        cb: anytype,
+    ) !usize {
         var buf = try std.ArrayListUnmanaged(u64).initCapacity(allocator, settings.t);
         defer buf.deinit(allocator);
 
@@ -217,8 +229,14 @@ pub const PBS = struct {
 
             for (buf.items) |bucket_idx| {
                 const xor_hash = try reader.readIntLittle(u64);
-                self.partition(idx).addXor(bucket_idx, xor_hash);
                 count += 1;
+
+                const part = self.partition(idx);
+                const val = part.recoverXor(bucket_idx, xor_hash) orelse continue;
+                const exp_idx = hash.hashValue(val, big_seed) % self.partitionCount();
+                if (exp_idx == idx) {
+                    cb.call(val);
+                }
             }
         }
 
@@ -319,8 +337,16 @@ test "big" {
     const count1 = try pbs1.serializeDiff(s, testing.allocator, cw1, cw2_copy, diff_bytes.writer());
 
     // 2: Apply the diff.
+    const cb = struct {
+        pub fn call(self: @This(), val: u64) void {
+            _ = self;
+            _ = val;
+            // std.debug.print("val={}\n", .{val});
+        }
+    };
+
     const reader = std.io.fixedBufferStream(diff_bytes.items).reader();
-    const count2 = try pbs2.applyDiff(s, testing.allocator, cw2, cw1_copy, reader);
+    const count2 = try pbs2.applyDiff(s, testing.allocator, cw2, cw1_copy, reader, cb{});
 
     // Now check that the count is equal on both sides.
     try testing.expectEqual(count1, count2);
