@@ -7,6 +7,8 @@ pub const TugOfWar = tow.TugOfWar;
 
 pub const MiniSketch = @import("./minisketch.zig");
 
+const pbs = @import("./pbs.zig");
+
 comptime {
     std.testing.refAllDecls(@This());
 }

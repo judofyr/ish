@@ -27,6 +27,11 @@ pub fn getAutoHashFn(comptime K: type, comptime Context: type) (fn (Context, K, 
     }.hash;
 }
 
+pub fn hashValue(value: anytype, seed: usize) u64 {
+    const ctx = AutoContext(@TypeOf(value)){};
+    return ctx.hash(value, seed);
+}
+
 pub fn AutoContext(comptime K: type) type {
     return struct {
         pub const hash = getAutoHashFn(K, @This());
