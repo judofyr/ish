@@ -1,0 +1,3 @@
+[submodule "vendor/minisketch"]
+	path = vendor/minisketch
+	url = https://github.com/sipa/minisketch
