@@ -12,5 +12,9 @@ jobs:
       - uses: goto-bus-stop/setup-zig@v1
         with:
           version: master
-      - run: zig fmt --check src/**/*.zig
-      - run: zig build test
+      - name: Formatting
+        run: zig fmt --check src/**/*.zig
+      - name: Tests
+        run: zig build test
+      - name: Building binaries
+        run: zig build
