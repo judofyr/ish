@@ -5,14 +5,6 @@ const hash = @import("./hash.zig");
 
 const MiniSketch = @import("./MiniSketch.zig");
 
-const small_seed = 5;
-const big_seed = 6;
-
-const Bucket = struct {
-    xor_hash: u64,
-    parity: u1,
-};
-
 pub const Settings = struct {
     const Self = @This();
 
@@ -27,6 +19,12 @@ pub const Settings = struct {
 
     /// Capacity of the codeword.
     t: usize = 7,
+
+    /// Seed used in Small-PBS.
+    small_seed: usize = 0,
+
+    /// Seed used in PBS.
+    big_seed: usize = 1,
 
     pub fn partitionCount(self: Self) usize {
         return @maximum(self.d / self.delta, 1);
@@ -61,8 +59,8 @@ pub const SmallPBS = struct {
         self.* = undefined;
     }
 
-    pub fn addOne(self: *Self, val: u64) void {
-        const idx = hash.hashValue(val, small_seed) % self.xor.len;
+    pub fn addOne(self: *Self, val: u64, settings: Settings) void {
+        const idx = hash.hashValue(val, settings.small_seed) % self.xor.len;
         self.xor[idx] ^= val;
         self.parity.toggle(idx);
     }
@@ -85,9 +83,9 @@ pub const SmallPBS = struct {
         return self.xor[idx - 1];
     }
 
-    pub fn recoverXor(self: *const Self, idx: usize, xor: u64) ?u64 {
+    pub fn recoverXor(self: *const Self, settings: Settings, idx: usize, xor: u64) ?u64 {
         const val = self.xor[idx - 1] ^ xor;
-        const exp_idx = hash.hashValue(val, small_seed) % self.xor.len;
+        const exp_idx = hash.hashValue(val, settings.small_seed) % self.xor.len;
         if (exp_idx == idx - 1) {
             return val;
         }
@@ -137,9 +135,9 @@ pub const PBS = struct {
         return self.xor.len / self.n;
     }
 
-    pub fn addOne(self: *Self, val: u64) void {
-        const idx = hash.hashValue(val, big_seed) % self.partitionCount();
-        self.partition(idx).addOne(val);
+    pub fn addOne(self: *Self, val: u64, settings: Settings) void {
+        const idx = hash.hashValue(val, settings.big_seed) % self.partitionCount();
+        self.partition(idx).addOne(val, settings);
     }
 
     pub fn buildCodewords(self: *const Self, settings: Settings, allocator: std.mem.Allocator) ![]MiniSketch {
@@ -232,8 +230,8 @@ pub const PBS = struct {
                 count += 1;
 
                 const part = self.partition(idx);
-                const val = part.recoverXor(bucket_idx, xor_hash) orelse continue;
-                const exp_idx = hash.hashValue(val, big_seed) % self.partitionCount();
+                const val = part.recoverXor(settings, bucket_idx, xor_hash) orelse continue;
+                const exp_idx = hash.hashValue(val, settings.big_seed) % self.partitionCount();
                 if (exp_idx == idx) {
                     cb.call(val);
                 }
@@ -260,13 +258,13 @@ test "small" {
 
     // Add all numbers from [a, b]
     while (a < b) : (a += 1) {
-        pbs1.addOne(a);
-        pbs2.addOne(a);
+        pbs1.addOne(a, s);
+        pbs2.addOne(a, s);
     }
 
     // Now add `d` more items to pbs2.
     while (a < b + s.d) : (a += 1) {
-        pbs2.addOne(a);
+        pbs2.addOne(a, s);
     }
 
     var cw1 = pbs1.buildCodeword(s);
@@ -296,13 +294,13 @@ test "big" {
 
     // Add all numbers from [a, b]
     while (a < b) : (a += 1) {
-        pbs1.addOne(a);
-        pbs2.addOne(a);
+        pbs1.addOne(a, s);
+        pbs2.addOne(a, s);
     }
 
     // Now add `d` more items to pbs2.
     while (a < b + s.d) : (a += 1) {
-        pbs2.addOne(a);
+        pbs2.addOne(a, s);
     }
 
     // At 1: Build our codewords
