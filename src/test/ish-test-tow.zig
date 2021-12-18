@@ -1,6 +1,6 @@
 const std = @import("std");
 
-const ToW = @import("../main.zig").AutoTugOfWar;
+const ToW = @import("../main.zig").tow.AutoTugOfWar;
 
 const allocator = std.heap.page_allocator;
 

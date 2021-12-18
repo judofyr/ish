@@ -3,7 +3,7 @@ const std = @import("std");
 
 const hash = @import("./hash.zig");
 
-const MiniSketch = @import("./minisketch.zig").MiniSketch;
+const MiniSketch = @import("./MiniSketch.zig");
 
 const small_seed = 5;
 const big_seed = 6;
