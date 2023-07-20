@@ -33,7 +33,7 @@ pub fn TugOfWar(
 
         pub fn initWithContext(allocator: std.mem.Allocator, count: usize, ctx: Context) !Self {
             const counters = try allocator.alloc(CountType, count);
-            std.mem.set(CountType, counters, 0);
+            @memset(counters, 0);
             return Self{ .counters = counters, .ctx = ctx };
         }
 
@@ -98,7 +98,7 @@ pub fn TugOfWar(
             for (self.counters) |val| {
                 sum += val * val;
             }
-            return @divFloor(sum, @intCast(CountType, self.counters.len));
+            return @divFloor(sum, @as(CountType, @intCast(self.counters.len)));
         }
     };
 }

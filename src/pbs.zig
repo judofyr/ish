@@ -27,7 +27,7 @@ pub const Settings = struct {
     big_seed: usize = 1,
 
     pub fn partitionCount(self: Self) usize {
-        return @maximum(self.d / self.delta, 1);
+        return @max(self.d / self.delta, 1);
     }
 
     pub fn smallCodewordSize(self: Self) usize {
@@ -49,7 +49,7 @@ pub const SmallPBS = struct {
     pub fn init(allocator: std.mem.Allocator, settings: Settings) !Self {
         const n = (@as(usize, 1) << settings.logn) - 1;
         const xor = try allocator.alloc(u64, n);
-        std.mem.set(u64, xor, 0);
+        @memset(xor, 0);
         const parity = try std.DynamicBitSetUnmanaged.initEmpty(allocator, n);
         return Self{ .settings = settings, .xor = xor, .parity = parity };
     }
@@ -105,7 +105,7 @@ pub const PBS = struct {
     pub fn init(allocator: std.mem.Allocator, settings: Settings) !Self {
         const n = (@as(usize, 1) << settings.logn) - 1;
         const xor = try allocator.alloc(u64, n * settings.partitionCount());
-        std.mem.set(u64, xor, 0);
+        @memset(xor, 0);
 
         // n is always 2^m - 1 and 2^m is always a multiple of usize.
         // We add 1 here so that all the masks start at a sensible boundary.
@@ -140,7 +140,8 @@ pub const PBS = struct {
 
     pub fn addOne(self: *Self, val: u64) void {
         const idx = hash.hashValue(val, self.settings.big_seed) % self.partitionCount();
-        self.partition(idx).addOne(val);
+        var part = self.partition(idx);
+        part.addOne(val);
     }
 
     pub fn buildCodewords(self: *const Self, allocator: std.mem.Allocator) ![]MiniSketch {
@@ -186,7 +187,7 @@ pub const PBS = struct {
 
         var count: usize = 0;
 
-        for (codewords) |*cw, idx| {
+        for (codewords, 0..) |*cw, idx| {
             buf.clearRetainingCapacity();
             try cw.merge(&other[idx]);
 
@@ -219,7 +220,7 @@ pub const PBS = struct {
 
         var count: usize = 0;
 
-        for (codewords) |*cw, idx| {
+        for (codewords, 0..) |*cw, idx| {
             buf.clearRetainingCapacity();
             try cw.merge(&other[idx]);
 
@@ -345,7 +346,8 @@ test "big" {
         }
     };
 
-    const reader = std.io.fixedBufferStream(diff_bytes.items).reader();
+    var fbs = std.io.fixedBufferStream(diff_bytes.items);
+    const reader = fbs.reader();
     const count2 = try pbs2.applyDiff(testing.allocator, cw2, cw1_copy, reader, cb{});
 
     // Now check that the count is equal on both sides.

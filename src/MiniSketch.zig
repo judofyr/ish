@@ -33,12 +33,12 @@ pub fn merge(self: *Self, other: *const Self) !void {
 }
 
 pub fn decode(self: *Self, target: *std.ArrayListUnmanaged(u64)) !void {
-    var ptr = @ptrCast([*]u64, target.items);
+    var ptr: [*]u64 = @ptrCast(target.items);
     const res = lib.minisketch_decode(self.data, target.capacity, &ptr[target.items.len]);
     if (res == -1) {
         return error.DecodeError;
     }
-    target.items.len += @intCast(usize, res);
+    target.items.len += @intCast(res);
 }
 
 pub fn serializedSize(self: *Self) usize {
@@ -54,14 +54,14 @@ pub fn serialize(self: *Self, target: *std.ArrayListUnmanaged(u8)) !void {
     assert(target.capacity >= target.items.len + size);
 
     var start = target.items.len;
-    var ptr = @ptrCast([*]u8, target.items);
+    var ptr: [*]u8 = @ptrCast(target.items);
     lib.minisketch_serialize(self.data, &ptr[start]);
     target.items.len += size;
 }
 
 pub fn deserialize(self: *Self, source: []const u8) !void {
     assert(source.len >= self.serializedSize());
-    lib.minisketch_deserialize(self.data, @ptrCast([*]const u8, source));
+    lib.minisketch_deserialize(self.data, @ptrCast(source));
 }
 
 const testing = std.testing;
