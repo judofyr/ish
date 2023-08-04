@@ -12,15 +12,15 @@ pub fn build(b: *Builder) !void {
         .optimize = optimize,
     });
     minisketch.linkLibCpp();
-    minisketch.addCSourceFile("vendor/minisketch/src/minisketch.cpp", &.{});
+    minisketch.addCSourceFile(.{ .file = .{ .path = "vendor/minisketch/src/minisketch.cpp" }, .flags = &.{} });
 
-    minisketch.addCSourceFile("vendor/minisketch/src/fields/generic_1byte.cpp", &.{});
+    minisketch.addCSourceFile(.{ .file = .{ .path = "vendor/minisketch/src/fields/generic_1byte.cpp" }, .flags = &.{} });
     var i: usize = 2;
     while (i <= 8) : (i += 1) {
         var fname: [255]u8 = undefined;
         var stream = std.io.fixedBufferStream(&fname);
         try std.fmt.format(stream.writer(), "vendor/minisketch/src/fields/generic_{}bytes.cpp", .{i});
-        minisketch.addCSourceFile(stream.getWritten(), &.{});
+        minisketch.addCSourceFile(.{ .file = .{ .path = stream.getWritten() }, .flags = &.{} });
     }
 
     var main_tests = b.addTest(.{
@@ -29,7 +29,7 @@ pub fn build(b: *Builder) !void {
         .optimize = optimize,
     });
 
-    main_tests.addIncludePath("vendor/minisketch/include");
+    main_tests.addIncludePath(.{ .path = "vendor/minisketch/include" });
     main_tests.linkLibrary(minisketch);
 
     const tests_run_step = b.addRunArtifact(main_tests);
@@ -43,15 +43,9 @@ pub fn build(b: *Builder) !void {
         .root_source_file = .{ .path = "src/test/ish-test-tow.zig" },
         .target = target,
         .optimize = optimize,
+        .main_pkg_path = .{ .path = "." },
     });
-    test_tow.setMainPkgPath(".");
     b.default_step.dependOn(&test_tow.step);
-
-    // const test_tow = b.addExecutable("ish-test-tow", "src/test/ish-test-tow.zig");
-    // test_tow.setTarget(target);
-    // test_tow.setBuildMode(mode);
-    // test_tow.setMainPkgPath(".");
-    // test_tow.install();
 
     const run_tow = b.addRunArtifact(test_tow);
     run_tow.has_side_effects = true;
