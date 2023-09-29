@@ -54,7 +54,7 @@ const Result = struct {
     }
 
     pub fn relativeError(self: Result) f64 {
-        const diff = @fabs(@as(f64, @floatFromInt(self.estimated - self.expected)));
+        const diff = @abs(@as(f64, @floatFromInt(self.estimated - self.expected)));
         return diff / @as(f64, @floatFromInt(self.expected));
     }
 };
