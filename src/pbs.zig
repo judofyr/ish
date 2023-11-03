@@ -197,7 +197,7 @@ pub const PBS = struct {
 
             for (buf.items) |bucket_idx| {
                 const xor_hash = self.partition(idx).xorForIdx(bucket_idx);
-                try writer.writeIntLittle(u64, xor_hash);
+                try writer.writeInt(u64, xor_hash, .little);
                 count += 1;
             }
         }
@@ -229,7 +229,7 @@ pub const PBS = struct {
             };
 
             for (buf.items) |bucket_idx| {
-                const xor_hash = try reader.readIntLittle(u64);
+                const xor_hash = try reader.readInt(u64, .little);
                 count += 1;
 
                 const part = self.partition(idx);
