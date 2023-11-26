@@ -170,7 +170,7 @@ pub const PBS = struct {
     }
 
     pub fn deserializeCodewords(self: *const Self, allocator: std.mem.Allocator, target: *std.ArrayListUnmanaged(u8)) ![]MiniSketch {
-        var codewords = try allocator.alloc(MiniSketch, self.settings.partitionCount());
+        const codewords = try allocator.alloc(MiniSketch, self.settings.partitionCount());
         var idx: usize = 0;
         for (codewords) |*cw| {
             cw.* = MiniSketch.init(self.settings.logn, self.settings.t);
@@ -257,7 +257,7 @@ test "small" {
     defer pbs2.deinit(testing.allocator);
 
     var a: u64 = 100;
-    var b: u64 = 1000;
+    const b: u64 = 1000;
 
     // Add all numbers from [a, b]
     while (a < b) : (a += 1) {
@@ -293,7 +293,7 @@ test "big" {
     defer pbs2.deinit(testing.allocator);
 
     var a: u64 = 100;
-    var b: u64 = 10000;
+    const b: u64 = 10000;
 
     // Add all numbers from [a, b]
     while (a < b) : (a += 1) {
@@ -307,7 +307,7 @@ test "big" {
     }
 
     // At 1: Build our codewords
-    var cw1 = try pbs1.buildCodewords(testing.allocator);
+    const cw1 = try pbs1.buildCodewords(testing.allocator);
     defer PBS.freeCodewords(testing.allocator, cw1);
 
     // 1: Build bytes.
@@ -316,11 +316,11 @@ test "big" {
     try PBS.serializeCodewords(cw1, &cw1_bytes);
 
     // 2: Build codewords
-    var cw2 = try pbs2.buildCodewords(testing.allocator);
+    const cw2 = try pbs2.buildCodewords(testing.allocator);
     defer PBS.freeCodewords(testing.allocator, cw2);
 
     // 2: Parse 1's codewords.
-    var cw1_copy = try pbs2.deserializeCodewords(testing.allocator, &cw1_bytes);
+    const cw1_copy = try pbs2.deserializeCodewords(testing.allocator, &cw1_bytes);
     defer PBS.freeCodewords(testing.allocator, cw1_copy);
 
     // 2: Build bytes.
@@ -329,7 +329,7 @@ test "big" {
     try PBS.serializeCodewords(cw2, &cw2_bytes);
 
     // 1: Parse 2's codewords.
-    var cw2_copy = try pbs1.deserializeCodewords(testing.allocator, &cw2_bytes);
+    const cw2_copy = try pbs1.deserializeCodewords(testing.allocator, &cw2_bytes);
     defer PBS.freeCodewords(testing.allocator, cw2_copy);
 
     // 1: Build diff.

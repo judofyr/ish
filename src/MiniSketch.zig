@@ -53,7 +53,7 @@ pub fn serialize(self: *Self, target: *std.ArrayListUnmanaged(u8)) !void {
     // We must have capacity for it.
     assert(target.capacity >= target.items.len + size);
 
-    var start = target.items.len;
+    const start = target.items.len;
     var ptr: [*]u8 = @ptrCast(target.items);
     lib.minisketch_serialize(self.data, &ptr[start]);
     target.items.len += size;
