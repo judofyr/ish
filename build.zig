@@ -1,7 +1,6 @@
 const std = @import("std");
-const Builder = std.build.Builder;
 
-pub fn build(b: *Builder) !void {
+pub fn build(b: *std.Build) !void {
     const optimize = b.standardOptimizeOption(.{});
     const target = b.standardTargetOptions(.{});
 
@@ -40,10 +39,9 @@ pub fn build(b: *Builder) !void {
 
     const test_tow = b.addExecutable(.{
         .name = "ish-test-tow",
-        .root_source_file = .{ .path = "src/test/ish-test-tow.zig" },
+        .root_source_file = .{ .path = "src/ish-test-tow.zig" },
         .target = target,
         .optimize = optimize,
-        .main_pkg_path = .{ .path = "." },
     });
     b.default_step.dependOn(&test_tow.step);
 
