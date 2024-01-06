@@ -109,9 +109,9 @@ test "basic" {
     var t = try AutoTugOfWar(i64, i64).init(testing.allocator, 32);
     defer t.deinit(testing.allocator);
 
-    t.addOne(@as(i64, 1));
-    t.addOne(@as(i64, 10));
-    t.addCount(@as(i64, 15), 5);
+    t.addOne(1);
+    t.addOne(10);
+    t.addCount(15, 5);
     _ = t.meanOfSquares();
 }
 
