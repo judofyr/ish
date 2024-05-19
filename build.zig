@@ -11,24 +11,24 @@ pub fn build(b: *std.Build) !void {
         .optimize = optimize,
     });
     minisketch.linkLibCpp();
-    minisketch.addCSourceFile(.{ .file = .{ .path = "vendor/minisketch/src/minisketch.cpp" }, .flags = &.{} });
+    minisketch.addCSourceFile(.{ .file = b.path("vendor/minisketch/src/minisketch.cpp"), .flags = &.{} });
 
-    minisketch.addCSourceFile(.{ .file = .{ .path = "vendor/minisketch/src/fields/generic_1byte.cpp" }, .flags = &.{} });
+    minisketch.addCSourceFile(.{ .file = b.path("vendor/minisketch/src/fields/generic_1byte.cpp"), .flags = &.{} });
     var i: usize = 2;
     while (i <= 8) : (i += 1) {
         var fname: [255]u8 = undefined;
         var stream = std.io.fixedBufferStream(&fname);
         try std.fmt.format(stream.writer(), "vendor/minisketch/src/fields/generic_{}bytes.cpp", .{i});
-        minisketch.addCSourceFile(.{ .file = .{ .path = stream.getWritten() }, .flags = &.{} });
+        minisketch.addCSourceFile(.{ .file = b.path(stream.getWritten()), .flags = &.{} });
     }
 
     var main_tests = b.addTest(.{
-        .root_source_file = .{ .path = "src/main.zig" },
+        .root_source_file = b.path("src/main.zig"),
         .target = target,
         .optimize = optimize,
     });
 
-    main_tests.addIncludePath(.{ .path = "vendor/minisketch/include" });
+    main_tests.addIncludePath(b.path("vendor/minisketch/include"));
     main_tests.linkLibrary(minisketch);
 
     const tests_run_step = b.addRunArtifact(main_tests);
@@ -39,7 +39,7 @@ pub fn build(b: *std.Build) !void {
 
     const test_tow = b.addExecutable(.{
         .name = "ish-test-tow",
-        .root_source_file = .{ .path = "src/ish-test-tow.zig" },
+        .root_source_file = b.path("src/ish-test-tow.zig"),
         .target = target,
         .optimize = optimize,
     });
