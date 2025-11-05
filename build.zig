@@ -5,10 +5,12 @@ pub fn build(b: *std.Build) !void {
     const target = b.standardTargetOptions(.{});
 
     // MiniSketch library
-    const minisketch = b.addStaticLibrary(.{
+    const minisketch = b.addLibrary(.{
         .name = "minisketch",
-        .target = target,
-        .optimize = optimize,
+        .root_module = b.createModule(.{
+            .target = target,
+            .optimize = optimize,
+        }),
     });
     minisketch.linkLibCpp();
     minisketch.addCSourceFile(.{ .file = b.path("vendor/minisketch/src/minisketch.cpp"), .flags = &.{} });
@@ -17,15 +19,17 @@ pub fn build(b: *std.Build) !void {
     var i: usize = 2;
     while (i <= 8) : (i += 1) {
         var fname: [255]u8 = undefined;
-        var stream = std.io.fixedBufferStream(&fname);
-        try std.fmt.format(stream.writer(), "vendor/minisketch/src/fields/generic_{}bytes.cpp", .{i});
-        minisketch.addCSourceFile(.{ .file = b.path(stream.getWritten()), .flags = &.{} });
+        var w = std.Io.Writer.fixed(&fname);
+        try w.print("vendor/minisketch/src/fields/generic_{}bytes.cpp", .{i});
+        minisketch.addCSourceFile(.{ .file = b.path(w.buffered()), .flags = &.{} });
     }
 
     var main_tests = b.addTest(.{
-        .root_source_file = b.path("src/main.zig"),
-        .target = target,
-        .optimize = optimize,
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("src/main.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
     });
 
     main_tests.addIncludePath(b.path("vendor/minisketch/include"));
@@ -39,9 +43,11 @@ pub fn build(b: *std.Build) !void {
 
     const test_tow = b.addExecutable(.{
         .name = "ish-test-tow",
-        .root_source_file = b.path("src/ish-test-tow.zig"),
-        .target = target,
-        .optimize = optimize,
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("src/ish-test-tow.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
     });
     b.default_step.dependOn(&test_tow.step);
 

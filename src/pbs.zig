@@ -181,7 +181,7 @@ pub const PBS = struct {
     }
 
     /// Serializes the difference based on the codewords. Note that this will modify `codewords`.
-    pub fn serializeDiff(self: *const Self, allocator: std.mem.Allocator, codewords: []MiniSketch, other: []const MiniSketch, writer: anytype) !usize {
+    pub fn serializeDiff(self: *const Self, allocator: std.mem.Allocator, codewords: []MiniSketch, other: []const MiniSketch, writer: *std.Io.Writer) !usize {
         var buf = try std.ArrayListUnmanaged(u64).initCapacity(allocator, self.settings.t);
         defer buf.deinit(allocator);
 
@@ -212,10 +212,10 @@ pub const PBS = struct {
         allocator: std.mem.Allocator,
         codewords: []MiniSketch,
         other: []const MiniSketch,
-        reader: anytype,
+        reader: *std.Io.Reader,
         cb: anytype,
     ) !usize {
-        var buf = try std.ArrayListUnmanaged(u64).initCapacity(allocator, self.settings.t);
+        var buf = try std.ArrayList(u64).initCapacity(allocator, self.settings.t);
         defer buf.deinit(allocator);
 
         var count: usize = 0;
@@ -229,7 +229,7 @@ pub const PBS = struct {
             };
 
             for (buf.items) |bucket_idx| {
-                const xor_hash = try reader.readInt(u64, .little);
+                const xor_hash = try reader.takeInt(u64, .little);
                 count += 1;
 
                 const part = self.partition(idx);
@@ -333,9 +333,9 @@ test "big" {
     defer PBS.freeCodewords(testing.allocator, cw2_copy);
 
     // 1: Build diff.
-    var diff_bytes = std.ArrayList(u8).init(testing.allocator);
+    var diff_bytes = std.Io.Writer.Allocating.init(testing.allocator);
     defer diff_bytes.deinit();
-    const count1 = try pbs1.serializeDiff(testing.allocator, cw1, cw2_copy, diff_bytes.writer());
+    const count1 = try pbs1.serializeDiff(testing.allocator, cw1, cw2_copy, &diff_bytes.writer);
 
     // 2: Apply the diff.
     const cb = struct {
@@ -346,9 +346,8 @@ test "big" {
         }
     };
 
-    var fbs = std.io.fixedBufferStream(diff_bytes.items);
-    const reader = fbs.reader();
-    const count2 = try pbs2.applyDiff(testing.allocator, cw2, cw1_copy, reader, cb{});
+    var reader = std.Io.Reader.fixed(diff_bytes.written());
+    const count2 = try pbs2.applyDiff(testing.allocator, cw2, cw1_copy, &reader, cb{});
 
     // Now check that the count is equal on both sides.
     try testing.expectEqual(count1, count2);
