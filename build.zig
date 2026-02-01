@@ -4,15 +4,18 @@ pub fn build(b: *std.Build) !void {
     const optimize = b.standardOptimizeOption(.{});
     const target = b.standardTargetOptions(.{});
 
-    // MiniSketch library
-    const minisketch = b.addLibrary(.{
-        .name = "minisketch",
-        .root_module = b.createModule(.{
-            .target = target,
-            .optimize = optimize,
-        }),
+    const minisketch = b.createModule(.{
+        .target = target,
+        .optimize = optimize,
     });
-    minisketch.linkLibCpp();
+
+    // MiniSketch library
+    const minisketch_lib = b.addLibrary(.{
+        .name = "minisketch",
+        .root_module = minisketch,
+    });
+
+    minisketch.linkSystemLibrary("c++", .{});
     minisketch.addCSourceFile(.{ .file = b.path("vendor/minisketch/src/minisketch.cpp"), .flags = &.{} });
 
     minisketch.addCSourceFile(.{ .file = b.path("vendor/minisketch/src/fields/generic_1byte.cpp"), .flags = &.{} });
@@ -32,8 +35,8 @@ pub fn build(b: *std.Build) !void {
         }),
     });
 
-    main_tests.addIncludePath(b.path("vendor/minisketch/include"));
-    main_tests.linkLibrary(minisketch);
+    main_tests.root_module.addIncludePath(b.path("vendor/minisketch/include"));
+    main_tests.root_module.linkLibrary(minisketch_lib);
 
     const tests_run_step = b.addRunArtifact(main_tests);
     tests_run_step.has_side_effects = true;
