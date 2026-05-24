@@ -1,9 +1,7 @@
 const std = @import("std");
 const assert = std.debug.assert;
 
-const lib = @cImport({
-    @cInclude("minisketch.h");
-});
+const lib = @import("c");
 
 const Self = @This();
 

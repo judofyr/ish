@@ -4,16 +4,19 @@ pub fn build(b: *std.Build) !void {
     const optimize = b.standardOptimizeOption(.{});
     const target = b.standardTargetOptions(.{});
 
-    const minisketch = b.createModule(.{
+    const translate_c = b.addTranslateC(.{
+        .root_source_file = b.path("src/c.h"),
         .target = target,
         .optimize = optimize,
     });
+    translate_c.addIncludePath(b.path("vendor/minisketch/include"));
 
-    // MiniSketch library
-    const minisketch_lib = b.addLibrary(.{
-        .name = "minisketch",
-        .root_module = minisketch,
+    const minisketch = b.createModule(.{
+        .root_source_file = b.path("src/main.zig"),
+        .target = target,
+        .optimize = optimize,
     });
+    minisketch.addImport("c", translate_c.createModule());
 
     minisketch.linkSystemLibrary("c++", .{});
     minisketch.addCSourceFile(.{ .file = b.path("vendor/minisketch/src/minisketch.cpp"), .flags = &.{} });
@@ -27,16 +30,9 @@ pub fn build(b: *std.Build) !void {
         minisketch.addCSourceFile(.{ .file = b.path(w.buffered()), .flags = &.{} });
     }
 
-    var main_tests = b.addTest(.{
-        .root_module = b.createModule(.{
-            .root_source_file = b.path("src/main.zig"),
-            .target = target,
-            .optimize = optimize,
-        }),
+    const main_tests = b.addTest(.{
+        .root_module = minisketch,
     });
-
-    main_tests.root_module.addIncludePath(b.path("vendor/minisketch/include"));
-    main_tests.root_module.linkLibrary(minisketch_lib);
 
     const tests_run_step = b.addRunArtifact(main_tests);
     tests_run_step.has_side_effects = true;
