@@ -1,7 +1,7 @@
 const std = @import("std");
 
 pub fn build(b: *std.Build) !void {
-    const optimize = b.standardOptimizeOption(.{});
+    const optimize = b.standardOptimizeOption(.{}) orelse .debug;
     const target = b.standardTargetOptions(.{});
 
     const translate_c = b.addTranslateC(.{
