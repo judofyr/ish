@@ -30,7 +30,7 @@ pub fn merge(self: *Self, other: *const Self) !void {
     }
 }
 
-pub fn decode(self: *Self, target: *std.ArrayListUnmanaged(u64)) !void {
+pub fn decode(self: *Self, target: *std.ArrayList(u64)) !void {
     var ptr: [*]u64 = @ptrCast(target.items);
     const res = lib.minisketch_decode(self.data, target.capacity, &ptr[target.items.len]);
     if (res == -1) {
@@ -45,7 +45,7 @@ pub fn serializedSize(self: *Self) usize {
 
 /// Appends the sketch into the given target. This assumes that the target has
 /// enough capacity to store the sketch.
-pub fn serialize(self: *Self, target: *std.ArrayListUnmanaged(u8)) !void {
+pub fn serialize(self: *Self, target: *std.ArrayList(u8)) !void {
     const size = self.serializedSize();
 
     // We must have capacity for it.
@@ -80,7 +80,7 @@ test "basic" {
     b.addOne(3);
 
     // Serialize
-    var bytes = try std.ArrayListUnmanaged(u8).initCapacity(testing.allocator, b.serializedSize());
+    var bytes = try std.ArrayList(u8).initCapacity(testing.allocator, b.serializedSize());
     defer bytes.deinit(testing.allocator);
 
     try a.serialize(&bytes);
@@ -95,7 +95,7 @@ test "basic" {
     // Decoding
     try a2.merge(&b);
 
-    var diff = try std.ArrayListUnmanaged(u64).initCapacity(testing.allocator, 10);
+    var diff = try std.ArrayList(u64).initCapacity(testing.allocator, 10);
     defer diff.deinit(testing.allocator);
 
     // Add one here to verify that decode actually _appends_.

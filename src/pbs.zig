@@ -163,13 +163,13 @@ pub const PBS = struct {
     }
 
     /// Serializes the codewords. The target should have enough capacity for Settings.combinedCodewordsSize.
-    pub fn serializeCodewords(codewords: []MiniSketch, target: *std.ArrayListUnmanaged(u8)) !void {
+    pub fn serializeCodewords(codewords: []MiniSketch, target: *std.ArrayList(u8)) !void {
         for (codewords) |*cw| {
             try cw.serialize(target);
         }
     }
 
-    pub fn deserializeCodewords(self: *const Self, allocator: std.mem.Allocator, target: *std.ArrayListUnmanaged(u8)) ![]MiniSketch {
+    pub fn deserializeCodewords(self: *const Self, allocator: std.mem.Allocator, target: *std.ArrayList(u8)) ![]MiniSketch {
         const codewords = try allocator.alloc(MiniSketch, self.settings.partitionCount());
         var idx: usize = 0;
         for (codewords) |*cw| {
@@ -182,7 +182,7 @@ pub const PBS = struct {
 
     /// Serializes the difference based on the codewords. Note that this will modify `codewords`.
     pub fn serializeDiff(self: *const Self, allocator: std.mem.Allocator, codewords: []MiniSketch, other: []const MiniSketch, writer: *std.Io.Writer) !usize {
-        var buf = try std.ArrayListUnmanaged(u64).initCapacity(allocator, self.settings.t);
+        var buf = try std.ArrayList(u64).initCapacity(allocator, self.settings.t);
         defer buf.deinit(allocator);
 
         var count: usize = 0;
@@ -276,7 +276,7 @@ test "small" {
     var cw2 = pbs2.buildCodeword();
     defer cw2.deinit();
 
-    var diff = try std.ArrayListUnmanaged(u64).initCapacity(testing.allocator, s.t);
+    var diff = try std.ArrayList(u64).initCapacity(testing.allocator, s.t);
     defer diff.deinit(testing.allocator);
 
     try cw1.merge(&cw2);
@@ -311,7 +311,7 @@ test "big" {
     defer PBS.freeCodewords(testing.allocator, cw1);
 
     // 1: Build bytes.
-    var cw1_bytes = try std.ArrayListUnmanaged(u8).initCapacity(testing.allocator, s.combinedCodewordsSize());
+    var cw1_bytes = try std.ArrayList(u8).initCapacity(testing.allocator, s.combinedCodewordsSize());
     defer cw1_bytes.deinit(testing.allocator);
     try PBS.serializeCodewords(cw1, &cw1_bytes);
 
@@ -324,7 +324,7 @@ test "big" {
     defer PBS.freeCodewords(testing.allocator, cw1_copy);
 
     // 2: Build bytes.
-    var cw2_bytes = try std.ArrayListUnmanaged(u8).initCapacity(testing.allocator, s.combinedCodewordsSize());
+    var cw2_bytes = try std.ArrayList(u8).initCapacity(testing.allocator, s.combinedCodewordsSize());
     defer cw2_bytes.deinit(testing.allocator);
     try PBS.serializeCodewords(cw2, &cw2_bytes);
 
